@@ -1,0 +1,24 @@
+name: Deploy to Firebase Hosting on Push
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Dependencies & Build
+        run: |
+          npm install
+          npm run build
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_ERP_MASTER_565F8 }}" # Or use FIREBASE_TOKEN below
+          channelId: live
+          projectId: erp-master-565f8
+        env:
+          FIREBASE_CLI_EXPERTS_ENABLED: true

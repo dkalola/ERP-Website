@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ShieldCheck,
   ArrowRight,
@@ -9,9 +9,13 @@ import {
   Wrench,
   HelpCircle,
   Play,
+  Calendar,
 } from "lucide-react";
+import DemoRequestModal from "../components/DemoRequestModal"; // Import your demo modal
 
 export default function LandingView({ setActiveTab, onOpenVideo }) {
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false); // Modal visibility state
+
   const videoClips = [
     {
       title: "Advanced Manufacturing & BOM Routing",
@@ -87,17 +91,29 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
           planning. Fully customizable workflows, real-time telemetry, and
           secure cryptographic licensing.
         </p>
-        <div className="flex justify-center space-x-4 pt-4">
+
+        {/* Call to Action Buttons including Book a Demo */}
+        <div className="flex flex-wrap justify-center items-center gap-4 pt-4">
           <button
             onClick={() => setActiveTab("portal")}
-            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center space-x-3"
+            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center space-x-3 cursor-pointer"
           >
             <span>Register ERP Instance</span>
             <ArrowRight className="w-5 h-5" />
           </button>
+
+          {/* Book a Demo Trigger Button */}
+          <button
+            onClick={() => setIsDemoModalOpen(true)}
+            className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/25 transition-all flex items-center space-x-3 cursor-pointer"
+          >
+            <Calendar className="w-5 h-5" />
+            <span>Book a Demo</span>
+          </button>
+
           <button
             onClick={() => setActiveTab("docs")}
-            className="px-8 py-4 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-xs transition-all flex items-center space-x-3"
+            className="px-8 py-4 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-xs transition-all flex items-center space-x-3 cursor-pointer"
           >
             <Terminal className="w-5 h-5 text-indigo-600" />
             <span>View Script Docs</span>
@@ -128,7 +144,7 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
                 </span>
                 <button
                   onClick={() => onOpenVideo(clip)}
-                  className="w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform z-10"
+                  className="w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform z-10 cursor-pointer"
                 >
                   <Play className="w-6 h-6 fill-current ml-1" />
                 </button>
@@ -210,6 +226,12 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
           ))}
         </div>
       </section>
+
+      {/* Render the Demo Request Modal */}
+      <DemoRequestModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+      />
     </main>
   );
 }

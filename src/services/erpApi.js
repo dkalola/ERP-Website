@@ -9,9 +9,11 @@ import {
   doc,
   serverTimestamp,
   deleteDoc,
+  setDoc,
 } from "firebase/firestore";
 
 const COLLECTION_NAME = "erp_instances";
+const DEMO_COLLECTION = "demo_requests";
 
 /**
  * 1. Register a new ERP instance and generate a license key
@@ -113,5 +115,79 @@ export async function deleteInstance(docId) {
   } catch (error) {
     console.error("Error deleting instance:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export const updateInstance = async (id, updatedData) => {
+  console.log("Updating ID:", id);
+
+  if (!id) {
+    console.error("Missing ID!");
+    return { success: false, error: new Error("Missing ID") };
+  }
+
+  try {
+    // Change "instances" to match your exact Firestore collection path if it's named differently
+    const docRef = doc(db, "erp_instances", id);
+
+    // setDoc with merge: true guarantees it updates the doc or creates it if missing
+    await setDoc(docRef, updatedData, { merge: true });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Firestore update failed:", error);
+    return { success: false, error };
+  }
+};
+
+// Submit a new demo request from the landing page
+export async function submitDemoRequest(formData) {
+  try {
+    const payload = {
+      ...formData,
+      status: "Pending",
+      createdAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(collection(db, DEMO_COLLECTION), payload);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error("Error submitting demo request:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update demo request status to "Closed" instead of deleting
+ */
+export async function updateDemoRequestStatus(docId, newStatus = "Closed") {
+  try {
+    const docRef = doc(db, "demo_requests", docId);
+    await updateDoc(docRef, { status: newStatus });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating demo request status:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Fetch only active (non-closed) demo requests for the admin portal
+ */
+export async function fetchDemoRequests() {
+  try {
+    // Query only requests where status is not "Closed" (or where status field doesn't exist yet)
+    const q = query(
+      collection(db, "demo_requests"),
+      where("status", "!=", "Closed"),
+    );
+    const querySnapshot = await getDocs(q);
+    const requests = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return { success: true, requests };
+  } catch (error) {
+    console.error("Error fetching demo requests:", error);
+    return { success: false, error: error.message, requests: [] };
   }
 }

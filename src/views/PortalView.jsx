@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Key, Lock, Activity, Globe, Check, Copy } from "lucide-react";
+import {
+  Key,
+  Lock,
+  Activity,
+  Globe,
+  Check,
+  Copy,
+  Calendar,
+  Building,
+  Phone,
+} from "lucide-react";
 
 export default function PortalView({
   clientName,
@@ -25,8 +35,9 @@ export default function PortalView({
   copyToClipboard,
   instances,
   onSelectInstance,
+  demoLeads = [], // <-- Add demoLeads prop passed from App.jsx
+  onCloseLead, // <-- Add onCloseLead prop passed from App.jsx
 }) {
-  // Local state to track if "custom" option is selected in the dropdown
   const [isCustomValidity, setIsCustomValidity] = useState(false);
   const [customDaysValue, setCustomDaysValue] = useState("45");
 
@@ -55,8 +66,8 @@ export default function PortalView({
             Client Portal & License Manager
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            Register time-bound licenses with detailed client telemetry and
-            tracking.
+            Register time-bound licenses, manage client telemetry, and review
+            incoming demo leads.
           </p>
         </div>
       </div>
@@ -235,68 +246,162 @@ export default function PortalView({
           )}
         </div>
 
-        {/* Telemetry Table */}
-        <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm space-y-6 lg:col-span-2">
-          <h2 className="text-xl font-bold flex items-center space-x-2 text-slate-900">
-            <Activity className="w-5 h-5 text-indigo-600" />
-            <span>Registered Instances & Client Directory</span>
-          </h2>
+        {/* Right Column: Telemetry Table & Demo Leads Table */}
+        <div className="space-y-8 lg:col-span-2">
+          {/* Telemetry Table */}
+          <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center space-x-2 text-slate-900">
+              <Activity className="w-5 h-5 text-indigo-600" />
+              <span>Registered Instances & Client Directory</span>
+            </h2>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs font-semibold uppercase text-slate-500">
-                  <th className="py-3 px-4">Client / Contact</th>
-                  <th className="py-3 px-4">Status / Users</th>
-                  <th className="py-3 px-4">Expires At</th>
-                  <th className="py-3 px-4">License Key</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {instances.map((inst, idx) => {
-                  const isExpired = inst.status === "Expired / Deactivated";
-                  return (
-                    <tr
-                      key={idx}
-                      className="hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <div className="font-semibold text-slate-900">
-                          {inst.client}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {inst.clientPerson} •{" "}
-                          {inst.clientEmail || inst.clientPhone || inst.domain}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${isExpired ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}
-                        >
-                          {inst.status}
-                        </span>
-                        <div className="text-xs text-slate-400 mt-1">
-                          Users: {inst.maxUsers || "10"}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 font-mono text-xs text-slate-700">
-                        {inst.expiresAt
-                          ? new Date(inst.expiresAt).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                      <td className="py-4 px-4 font-mono text-xs">
-                        <button
-                          onClick={() => onSelectInstance(inst)}
-                          className="text-indigo-600 font-bold hover:underline cursor-pointer bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100"
-                        >
-                          {inst.license} ↗
-                        </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold uppercase text-slate-500">
+                    <th className="py-3 px-4">Client / Contact</th>
+                    <th className="py-3 px-4">Status / Users</th>
+                    <th className="py-3 px-4">Expires At</th>
+                    <th className="py-3 px-4">License Key</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {instances.map((inst, idx) => {
+                    const isExpired = inst.status === "Expired / Deactivated";
+                    return (
+                      <tr
+                        key={idx}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="py-4 px-4">
+                          <div className="font-semibold text-slate-900">
+                            {inst.client}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {inst.clientPerson} •{" "}
+                            {inst.clientEmail ||
+                              inst.clientPhone ||
+                              inst.domain}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold ${isExpired ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}
+                          >
+                            {isExpired ? "Deactivated" : "Active"}
+                          </span>
+                          <div className="text-xs text-slate-400 mt-1">
+                            Users: {inst.maxUsers || "10"}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 font-mono text-xs text-slate-700">
+                          {inst.expiresAt
+                            ? new Date(inst.expiresAt).toLocaleDateString()
+                            : "N/A"}
+                        </td>
+                        <td className="py-4 px-4 font-mono text-xs">
+                          <button
+                            onClick={() => onSelectInstance(inst)}
+                            className="text-indigo-600 font-bold hover:underline cursor-pointer bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100"
+                          >
+                            {inst.license} ↗
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Incoming Demo Requests Table */}
+          <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center space-x-2 text-slate-900">
+              <Calendar className="w-5 h-5 text-emerald-600" />
+              <span>Incoming Demo Requests ({demoLeads.length})</span>
+            </h2>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold uppercase text-slate-500">
+                    <th className="py-3 px-4">Company & Contact</th>
+                    <th className="py-3 px-4">Industry / Size</th>
+                    <th className="py-3 px-4">Use Case & Requirements</th>
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {demoLeads.length > 0 ? (
+                    demoLeads.map((lead, idx) => (
+                      <tr
+                        key={lead.id || idx}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="py-4 px-4">
+                          <div className="font-semibold text-slate-900">
+                            {lead.companyName}
+                          </div>
+                          <div className="text-xs font-mono text-indigo-600">
+                            {lead.contactNumber}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="font-semibold text-slate-800 text-xs">
+                            {lead.industry}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {lead.companySize}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 max-w-xs">
+                          <p
+                            className="text-xs text-slate-700 truncate"
+                            title={lead.useCase}
+                          >
+                            {lead.useCase}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {lead.selectedFeatures?.map((f, i) => (
+                              <span
+                                key={i}
+                                className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium"
+                              >
+                                {f}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-xs text-slate-500">
+                          {lead.createdAt
+                            ? new Date(lead.createdAt).toLocaleDateString()
+                            : "N/A"}
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <button
+                            onClick={() => onCloseLead(lead.id)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-bold rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            Close Request
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="py-8 text-center text-slate-400 italic text-xs"
+                      >
+                        No active demo requests found.
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

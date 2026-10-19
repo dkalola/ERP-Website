@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Server, Key, Play, X, LogOut, Lock } from "lucide-react";
-import { fetchAllInstances, registerInstance } from "./services/erpApi";
+import {
+  fetchAllInstances,
+  registerInstance,
+  fetchDemoRequests,
+  updateDemoRequestStatus,
+} from "./services/erpApi";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 
 // Import Views
@@ -25,6 +30,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [demoLeads, setDemoLeads] = useState([]);
 
   // Portal State
   const [clientName, setClientName] = useState("");
@@ -41,6 +47,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("nexus_active_tab", activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    async function loadLeads() {
+      const res = await fetchDemoRequests();
+      if (res.success) setDemoLeads(res.requests);
+    }
+    loadLeads();
+  }, []);
 
   // Save selectedInstance to localStorage whenever it changes
   useEffect(() => {
@@ -124,6 +138,17 @@ export default function App() {
   };
 
   const frappeScript = `# General Integration Script Doc...`;
+
+  const handleCloseDemoLead = async (leadId) => {
+    const res = await updateDemoRequestStatus(leadId, "Closed");
+    if (res.success) {
+      setDemoLeads((prevLeads) =>
+        prevLeads.filter((lead) => lead.id !== leadId),
+      );
+    } else {
+      alert("Failed to close request.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
@@ -256,6 +281,8 @@ export default function App() {
               copiedKey,
               copyToClipboard,
               instances,
+              demoLeads,
+              onCloseLead: handleCloseDemoLead, // <-- Add this line here
             }}
             onSelectInstance={(inst) => {
               setSelectedInstance(inst);

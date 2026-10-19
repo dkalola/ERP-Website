@@ -12,17 +12,32 @@ import {
   X,
   Trash2,
   AlertTriangle,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
-import { deleteInstance } from "../services/erpApi"; // Import delete API
+import { deleteInstance, updateInstance } from "../services/erpApi";
 
-export default function InstanceDetailView({ instance, onBack }) {
+export default function InstanceDetailView({
+  instance,
+  onBack,
+  onInstanceUpdated,
+}) {
   const [copied, setCopied] = useState(false);
   const [showStepsModal, setShowStepsModal] = useState(false);
+
+  // Renewal & Status States
+  const [renewalMonths, setRenewalMonths] = useState(1);
+  const [renewing, setRenewing] = useState(false);
 
   // Delete 2FA Confirmation State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Revoke / Expire Now Modal States
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [revokeConfirmText, setRevokeConfirmText] = useState("");
+  const [revoking, setRevoking] = useState(false);
 
   const customPythonScript = `
 # Frappe Server Script / Whitelisted Method for ${instance.client} (${instance.domain})
@@ -68,6 +83,99 @@ def verify_client_license():
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Add a state for the custom expiry date picker (default to today + 30 days formatted as YYYY-MM-DD)
+  const [customExpiryDate, setCustomExpiryDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split("T")[0];
+  });
+
+  const handleRenewLicense = async () => {
+    if (!customExpiryDate) {
+      alert("Please select a valid expiration date.");
+      return;
+    }
+
+    setRenewing(true);
+
+    // Convert selected date string to ISO datetime
+    const newExpDate = new Date(customExpiryDate);
+    newExpDate.setHours(23, 59, 59, 999); // Set to end of the selected day
+
+    const historyEntry = {
+      renewedAt: new Date().toISOString(),
+      previousExpiry: instance.expiresAt || new Date().toISOString(),
+      newExpiry: newExpDate.toISOString(),
+      planDuration: `Custom (until ${newExpDate.toLocaleDateString()})`,
+      updatedBy: "Admin Portal",
+    };
+
+    const existingHistory = Array.isArray(instance.renewalHistory)
+      ? instance.renewalHistory
+      : [];
+    const updatedHistory = [historyEntry, ...existingHistory];
+
+    const payload = {
+      expiresAt: newExpDate.toISOString(),
+      status: "Active",
+      renewalHistory: updatedHistory,
+    };
+
+    try {
+      const res = await updateInstance(instance.id, payload);
+      setRenewing(false);
+      if (res.success) {
+        instance.expiresAt = newExpDate.toISOString();
+        instance.status = "Active";
+        instance.renewalHistory = updatedHistory;
+        if (onInstanceUpdated) onInstanceUpdated(instance);
+        alert("License successfully extended to the selected date!");
+      } else {
+        alert("Failed to renew license via API.");
+      }
+    } catch (err) {
+      setRenewing(false);
+      console.error("Renewal error:", err);
+      alert("An error occurred while renewing the license.");
+    }
+  };
+  const handleToggleHoldStatus = async () => {
+    setRenewing(true);
+    const isCurrentlyOnHold = instance.status === "On Hold";
+
+    const newExpDate = isCurrentlyOnHold
+      ? new Date(instance.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000) // Restore previous or add 30 days
+      : new Date(Date.now() - 24 * 60 * 60 * 1000); // Lock it
+
+    const newStatus = isCurrentlyOnHold ? "Active" : "On Hold";
+
+    const payload = {
+      expiresAt: newExpDate.toISOString(),
+      status: newStatus,
+    };
+
+    try {
+      const res = await updateInstance(instance.id, payload);
+      setRenewing(false);
+      if (res.success) {
+        instance.expiresAt = newExpDate.toISOString();
+        instance.status = newStatus;
+        if (onInstanceUpdated) onInstanceUpdated(instance);
+        alert(
+          isCurrentlyOnHold
+            ? "License activated successfully!"
+            : "License placed on hold.",
+        );
+      } else {
+        alert("Failed to update status.");
+      }
+    } catch (err) {
+      setRenewing(false);
+      console.error("Status toggle error:", err);
+      alert("An error occurred.");
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (confirmText !== instance.client) return;
     setDeleting(true);
@@ -75,9 +183,59 @@ def verify_client_license():
     setDeleting(false);
 
     if (res.success) {
-      onBack(); // Return to dashboard
+      onBack();
     } else {
       alert("Failed to delete instance.");
+    }
+  };
+
+  const handleRevokeNowConfirm = async () => {
+    if (revokeConfirmText !== instance.client) return;
+    setRevoking(true);
+
+    // Set expiration to yesterday to instantly force an expiration lock
+    const expiredDate = new Date();
+    expiredDate.setDate(expiredDate.getDate() - 1);
+
+    const historyEntry = {
+      renewedAt: new Date().toISOString(),
+      previousExpiry: instance.expiresAt || new Date().toISOString(),
+      newExpiry: expiredDate.toISOString(),
+      planDuration: "Manually Revoked / Expired",
+      updatedBy: "Admin Portal",
+    };
+
+    const existingHistory = Array.isArray(instance.renewalHistory)
+      ? instance.renewalHistory
+      : [];
+    const updatedHistory = [historyEntry, ...existingHistory];
+
+    const payload = {
+      expiresAt: expiredDate.toISOString(),
+      status: "Expired / Deactivated",
+      renewalHistory: updatedHistory,
+    };
+
+    try {
+      const res = await updateInstance(instance.id, payload);
+      setRevoking(false);
+      setShowRevokeModal(false);
+      setRevokeConfirmText("");
+      if (res.success) {
+        instance.expiresAt = expiredDate.toISOString();
+        instance.status = "Expired / Deactivated";
+        instance.renewalHistory = updatedHistory;
+        if (onInstanceUpdated) onInstanceUpdated(instance);
+        alert(
+          "License successfully revoked and expired. ERPNext will lock on next verification.",
+        );
+      } else {
+        alert("Failed to revoke license.");
+      }
+    } catch (err) {
+      setRevoking(false);
+      console.error("Revoke error:", err);
+      alert("An error occurred while revoking the license.");
     }
   };
 
@@ -164,6 +322,156 @@ def verify_client_license():
         </div>
       </div>
 
+      {/* SUBSCRIPTION RENEWAL & STATUS MANAGEMENT CARD */}
+      <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xs space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center space-x-2">
+              <RefreshCw className="w-5 h-5 text-indigo-600" />
+              <span>Subscription & Status Management</span>
+            </h3>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {isExpired
+                ? "License is expired or deactivated. Renew to restore access."
+                : "License is currently active. You can place it on hold if needed."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* 1. REVOKE BUTTON: Shown only when Active */}
+            {!isExpired && (
+              <button
+                onClick={() => {
+                  setRevokeConfirmText("");
+                  setShowRevokeModal(true);
+                }}
+                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl text-sm transition-all cursor-pointer whitespace-nowrap"
+              >
+                Revoke License Now
+              </button>
+            )}
+
+            {/* 2. PUT ON HOLD / ACTIVATE TOGGLE */}
+            {/* If expired/revoked, we HIDE the activate option UNLESS it was placed on hold. 
+                To distinguish between "Revoked/Expired" vs "On Hold", we check if status is specifically "Expired / Deactivated" due to a manual revoke vs standard expiry, 
+                or we can show "Activate" ONLY when it's placed on hold. */}
+
+            {/* If it's on hold / expired, show Activate ONLY if you want them to be able to un-hold it. 
+                If you want to hide Activate entirely upon revocation, you can check a custom status flag or keep Activate visible only for "On Hold". */}
+
+            {/* Let's show "Put on Hold" when Active, and "Activate" ONLY when placed on hold (not fully revoked/expired via date) */}
+            {!isExpired ? (
+              <button
+                onClick={handleToggleHoldStatus}
+                disabled={renewing}
+                className="px-5 py-2.5 font-bold rounded-xl text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              >
+                Put on Hold
+              </button>
+            ) : instance.status === "On Hold" ? (
+              <button
+                onClick={handleToggleHoldStatus}
+                disabled={renewing}
+                className="px-5 py-2.5 font-bold rounded-xl text-sm bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              >
+                Activate License
+              </button>
+            ) : null}
+
+            {/* 3. RENEW OPTIONS: Shown when expired or revoked */}
+            {isExpired && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    New Expiry:
+                  </span>
+                  <input
+                    type="date"
+                    value={customExpiryDate}
+                    onChange={(e) => setCustomExpiryDate(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  onClick={handleRenewLicense}
+                  disabled={renewing}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-indigo-600/20 cursor-pointer whitespace-nowrap"
+                >
+                  {renewing ? "Processing..." : "Confirm Renewal"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Renewal History Table (Always shown to track past audits) */}
+        <div className="border-t border-slate-100 pt-6 space-y-3">
+          <h4 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+            <Clock className="w-4 h-4 text-slate-500" />
+            <span>
+              Renewal Audit History ({instance.renewalHistory?.length || 0})
+            </span>
+          </h4>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3">Renewed Timestamp</th>
+                  <th className="px-4 py-3">Duration Added</th>
+                  <th className="px-4 py-3">Previous Expiry</th>
+                  <th className="px-4 py-3">New Expiry</th>
+                  <th className="px-4 py-3">Updated By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {Array.isArray(instance.renewalHistory) &&
+                instance.renewalHistory.length > 0 ? (
+                  instance.renewalHistory.map((item, index) => (
+                    <tr
+                      key={index}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {item.renewedAt
+                          ? new Date(item.renewedAt).toLocaleString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-indigo-600">
+                        {item.planDuration || "N/A"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {item.previousExpiry
+                          ? new Date(item.previousExpiry).toLocaleDateString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-emerald-600">
+                        {item.newExpiry
+                          ? new Date(item.newExpiry).toLocaleDateString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {item.updatedBy || "Admin"}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="px-4 py-6 text-center text-slate-400 italic"
+                    >
+                      No renewal records found for this instance yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       {/* Pre-generated Integration Code Section */}
       <div className="space-y-4">
         <div className="space-y-1">
@@ -235,7 +543,6 @@ def verify_client_license():
       {/* STEP-BY-STEP GUIDE MODAL */}
       {showStepsModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          {/* Modal content from before */}
           <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-8 space-y-6 relative shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h3 className="text-lg font-extrabold text-slate-900">
@@ -255,7 +562,7 @@ def verify_client_license():
             <div className="flex justify-end">
               <button
                 onClick={() => setShowStepsModal(false)}
-                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl"
+                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl cursor-pointer"
               >
                 Got it
               </button>
@@ -313,6 +620,60 @@ def verify_client_license():
                 className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-rose-600/20 cursor-pointer"
               >
                 {deleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TWO-FACTOR / REVOKE CONFIRMATION MODAL */}
+      {showRevokeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-8 space-y-6 relative shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-extrabold text-rose-900 flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <span>Confirm Immediate Revocation</span>
+              </h3>
+              <button
+                onClick={() => setShowRevokeModal(false)}
+                className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm text-slate-600">
+              <p>
+                This will instantly invalidate the license and lock out{" "}
+                <span className="font-bold text-slate-900">
+                  {instance.client}
+                </span>
+                . To confirm, please type the exact company name below:
+              </p>
+
+              <input
+                type="text"
+                placeholder={`Type "${instance.client}" to confirm`}
+                value={revokeConfirmText}
+                onChange={(e) => setRevokeConfirmText(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:outline-none focus:border-rose-600"
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-2">
+              <button
+                onClick={() => setShowRevokeModal(false)}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRevokeNowConfirm}
+                disabled={revokeConfirmText !== instance.client || revoking}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-rose-600/20 cursor-pointer"
+              >
+                {revoking ? "Revoking..." : "Confirm Revoke"}
               </button>
             </div>
           </div>

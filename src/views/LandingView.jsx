@@ -10,11 +10,12 @@ import {
   HelpCircle,
   Play,
   Calendar,
+  Check,
 } from "lucide-react";
-import DemoRequestModal from "../components/DemoRequestModal"; // Import your demo modal
+import DemoRequestModal from "../components/DemoRequestModal";
 
 export default function LandingView({ setActiveTab, onOpenVideo }) {
-  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false); // Modal visibility state
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const videoClips = [
     {
@@ -64,7 +65,7 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
     },
     {
       q: "Can I host ERPNext on my own private server?",
-      a: "Yes! Our licensing and telemetry mechanism is fully compatible with self-hosted Docker environments, AWS, Google Cloud, or DigitalOcean.",
+      a: "Yes! Our licensing and telemetry mechanism is fully compatible with self-hosted Docker environments, AWS, Google Cloud, or local on-premise hardware.",
     },
     {
       q: "What happens if a license expires?",
@@ -92,32 +93,79 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
           secure cryptographic licensing.
         </p>
 
-        {/* Call to Action Buttons including Book a Demo */}
+        {/* Call to Action Buttons */}
         <div className="flex flex-wrap justify-center items-center gap-4 pt-4">
           <button
-            onClick={() => setActiveTab("portal")}
-            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center space-x-3 cursor-pointer"
-          >
-            <span>Register ERP Instance</span>
-            <ArrowRight className="w-5 h-5" />
-          </button>
-
-          {/* Book a Demo Trigger Button */}
-          <button
             onClick={() => setIsDemoModalOpen(true)}
-            className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/25 transition-all flex items-center space-x-3 cursor-pointer"
+            className="px-8 py-4 bg-indigo-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/25 transition-all flex items-center space-x-3 cursor-pointer"
           >
             <Calendar className="w-5 h-5" />
             <span>Book a Demo</span>
           </button>
+        </div>
+      </section>
 
-          <button
-            onClick={() => setActiveTab("docs")}
-            className="px-8 py-4 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-xs transition-all flex items-center space-x-3 cursor-pointer"
-          >
-            <Terminal className="w-5 h-5 text-indigo-600" />
-            <span>View Script Docs</span>
-          </button>
+      {/* USP / Lean Architecture Section */}
+      <section className="bg-white border border-slate-200 rounded-3xl p-8 md:p-12 shadow-xs space-y-8">
+        <div className="max-w-3xl space-y-3">
+          <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg uppercase tracking-wider border border-indigo-100">
+            The Nexus ERP Difference
+          </span>
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            No Bloated Features. No Confusing Desks. Just What Your Plant
+            Actually Uses.
+          </h2>
+          <p className="text-slate-600 text-sm leading-relaxed">
+            We don’t compete on trying to match every generic feature in the
+            market. We compete on{" "}
+            <strong>simplicity, clarity, and speed</strong>. You only pay for
+            the exact modules your operators need—keeping your software
+            lightning-fast and your monthly overhead low.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm">
+              01
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">
+              Zero Unnecessary Bloat
+            </h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              If your machining shop doesn’t need retail POS or complex
+              multi-currency accounting, it won’t be in your software. Cut the
+              clutter, cut the cost.
+            </p>
+          </div>
+
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm">
+              02
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">
+              Designed for Shop Floor Speed
+            </h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Clean interfaces with zero crowded menus. Your operators can log
+              challans and update machine production in seconds without formal
+              technical training.
+            </p>
+          </div>
+
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm">
+              03
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">
+              Pay Only For Use
+            </h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Modular monthly pricing aligned strictly with your company size
+              and specific workflows. You never pay for software modules
+              gathering digital dust.
+            </p>
+          </div>
         </div>
       </section>
 

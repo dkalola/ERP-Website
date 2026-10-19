@@ -194,15 +194,6 @@ export default function App() {
             >
               Pricing
             </button>
-            <button
-              onClick={() => {
-                setActiveTab("docs");
-                setSelectedInstance(null);
-              }}
-              className={`transition-colors ${activeTab === "docs" ? "text-indigo-600 font-semibold" : "text-slate-600 hover:text-indigo-600"}`}
-            >
-              Integration Docs
-            </button>
           </nav>
 
           <div className="flex items-center space-x-4">

@@ -75,7 +75,6 @@ export default function PricingView({ setActiveTab }) {
     },
   ];
 
-  // Fixed monthly tiers in INR based on company size
   const pricingTiers = [
     { size: "1-10 employees", price: "5,000", range: "1-10" },
     { size: "10-25 employees", price: "10,000", range: "10-25" },
@@ -95,10 +94,10 @@ export default function PricingView({ setActiveTab }) {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-16 space-y-16">
+    <main className="max-w-7xl mx-auto px-6 py-16 space-y-16 animate-[fadeIn_0.5s_ease-out]">
       {/* Header */}
-      <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-xs font-semibold tracking-wide shadow-xs">
+      <div className="text-center space-y-4 max-w-3xl mx-auto animate-[slideUp_0.6s_cubic-bezier(0.16,1,0.3,1)]">
+        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-xs font-semibold tracking-wide shadow-xs mb-2">
           <IndianRupee className="w-4 h-4 text-indigo-600" />
           <span>Pay Only For What You Use • Zero Bloatware</span>
         </div>
@@ -118,7 +117,7 @@ export default function PricingView({ setActiveTab }) {
       <section className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 md:p-12 text-white shadow-xl border border-slate-800 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="max-w-3xl space-y-3 mb-8">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-bold tracking-wide uppercase">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-bold tracking-wide uppercase mb-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Live Platform Traction</span>
           </div>
@@ -170,7 +169,6 @@ export default function PricingView({ setActiveTab }) {
 
       {/* How the System Works & What You Pay For */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* How System Works & Deployment */}
         <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
           <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100">
             <Server className="w-6 h-6" />
@@ -203,7 +201,6 @@ export default function PricingView({ setActiveTab }) {
           </div>
         </div>
 
-        {/* What You Are Paying For */}
         <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
           <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
             <ShieldCheck className="w-6 h-6" />
@@ -241,7 +238,7 @@ export default function PricingView({ setActiveTab }) {
       <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-3xl p-8 md:p-12 text-white shadow-xl space-y-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="max-w-2xl space-y-3">
-          <span className="px-3 py-1 bg-indigo-500/30 text-indigo-300 text-xs font-bold rounded-lg uppercase tracking-wider border border-indigo-500/30">
+          <span className="inline-block px-3 py-1 bg-indigo-500/30 text-indigo-300 text-xs font-bold rounded-lg uppercase tracking-wider border border-indigo-500/30 mb-2">
             Tailored Module Architecture
           </span>
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
@@ -321,7 +318,6 @@ export default function PricingView({ setActiveTab }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Module Selector & Size Selection */}
           <div className="lg:col-span-2 space-y-6">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -387,7 +383,6 @@ export default function PricingView({ setActiveTab }) {
             </div>
           </div>
 
-          {/* Pricing Summary Box */}
           <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl flex flex-col justify-between space-y-6">
             <div className="space-y-4">
               <h3 className="font-bold text-slate-900 text-base border-b border-slate-200 pb-3 flex items-center space-x-2">
@@ -439,7 +434,6 @@ export default function PricingView({ setActiveTab }) {
         </div>
       </div>
 
-      {/* Render the Demo Request Modal */}
       <DemoRequestModal
         isOpen={isDemoModalOpen}
         onClose={() => setIsDemoModalOpen(false)}

@@ -10,15 +10,16 @@ import {
 import { submitDemoRequest } from "../services/erpApi";
 
 export default function DemoRequestModal({ isOpen, onClose }) {
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     companyName: "",
     contactNumber: "",
     industry: "Manufacturing / Forging",
     companySize: "10-50 employees",
     useCase: "",
     selectedFeatures: [],
-  });
+  };
 
+  const [formData, setFormData] = useState(initialFormState);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -56,6 +57,8 @@ export default function DemoRequestModal({ isOpen, onClose }) {
 
     if (res.success) {
       setSuccess(true);
+      // Reset form data back to initial empty state upon successful submission
+      setFormData(initialFormState);
     } else {
       alert("Failed to submit request. Please try again.");
     }

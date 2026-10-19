@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Server, Key, Play, X, LogOut, Lock } from "lucide-react";
+import { Server, Key, Play, X, LogOut, Lock, Factory } from "lucide-react";
 import {
   fetchAllInstances,
   registerInstance,
@@ -7,6 +7,7 @@ import {
   updateDemoRequestStatus,
 } from "./services/erpApi";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import Footer from "./components/Footer";
 
 // Import Views
 import LandingView from "./views/LandingView";
@@ -163,7 +164,7 @@ export default function App() {
             }}
           >
             <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-600/20">
-              <Server className="w-5 h-5" />
+              <Factory className="w-5 h-5" />
             </div>
             <div>
               <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-900 to-indigo-600 bg-clip-text text-transparent">
@@ -293,6 +294,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Persistent Footer */}
+      <Footer setActiveTab={setActiveTab} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck,
   ArrowRight,
@@ -11,11 +11,27 @@ import {
   Play,
   Calendar,
   Check,
+  Activity,
+  Users,
+  Cpu,
 } from "lucide-react";
+import { fetchCachedLiveStats } from "../utils/metricsCache";
 import DemoRequestModal from "../components/DemoRequestModal";
 
 export default function LandingView({ setActiveTab, onOpenVideo }) {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [liveStats, setLiveStats] = useState({
+    activeInquiries: 0,
+    runningLicenses: 0,
+  });
+
+  useEffect(() => {
+    async function loadStats() {
+      const stats = await fetchCachedLiveStats();
+      setLiveStats(stats);
+    }
+    loadStats();
+  }, []);
 
   const videoClips = [
     {
@@ -81,6 +97,7 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
           <ShieldCheck className="w-4 h-4 text-indigo-600" />
           <span>Powered by ERPNext & Frappe Framework</span>
         </div>
+
         <h1 className="text-4xl md:text-6xl font-black max-w-4xl mx-auto leading-tight tracking-tight text-slate-900">
           Next-Gen ERP Solutions for{" "}
           <span className="bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
@@ -102,6 +119,60 @@ export default function LandingView({ setActiveTab, onOpenVideo }) {
             <Calendar className="w-5 h-5" />
             <span>Book a Demo</span>
           </button>
+        </div>
+      </section>
+
+      {/* Prominent Live Platform Metrics Showcase Section */}
+      <section className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 md:p-12 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="max-w-3xl space-y-3 mb-8">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-bold tracking-wide uppercase">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Live Platform Traction</span>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Active Deployments & Plant Inquiries in Real-Time
+          </h2>
+          <p className="text-slate-300 text-sm leading-relaxed">
+            Monitor our network scale as manufacturing plants and machining job
+            works transition to lean, on-premise ERP architecture.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white/5 border border-white/10 p-6 rounded-2xl flex items-center justify-between backdrop-blur-md">
+            <div className="space-y-1">
+              <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                Running Inquiries & Demos
+              </span>
+              <div className="text-4xl md:text-5xl font-black text-white font-mono">
+                {liveStats.activeInquiries}
+              </div>
+              <p className="text-xs text-slate-400">
+                Plants currently evaluating custom module scoping.
+              </p>
+            </div>
+            <div className="w-14 h-14 bg-indigo-600/30 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-indigo-300">
+              <Users className="w-7 h-7" />
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 p-6 rounded-2xl flex items-center justify-between backdrop-blur-md">
+            <div className="space-y-1">
+              <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                Active ERP Licenses
+              </span>
+              <div className="text-4xl md:text-5xl font-black text-emerald-400 font-mono">
+                {liveStats.runningLicenses}
+              </div>
+              <p className="text-xs text-slate-400">
+                On-premise production instances actively running.
+              </p>
+            </div>
+            <div className="w-14 h-14 bg-emerald-600/30 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-300">
+              <Cpu className="w-7 h-7" />
+            </div>
+          </div>
         </div>
       </section>
 

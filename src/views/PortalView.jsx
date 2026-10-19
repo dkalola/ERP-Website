@@ -11,7 +11,13 @@ export default function PortalView({
   selectedPlan,
   setSelectedPlan,
   validityDays,
-  setValidityDays, // <-- Add these props
+  setValidityDays,
+  clientEmail,
+  setClientEmail,
+  clientPhone,
+  setClientPhone,
+  maxUsers,
+  setMaxUsers,
   loading,
   handleGenerateLicense,
   generatedLicense,
@@ -20,6 +26,27 @@ export default function PortalView({
   instances,
   onSelectInstance,
 }) {
+  // Local state to track if "custom" option is selected in the dropdown
+  const [isCustomValidity, setIsCustomValidity] = useState(false);
+  const [customDaysValue, setCustomDaysValue] = useState("45");
+
+  const handleValidityChange = (e) => {
+    const val = e.target.value;
+    if (val === "custom") {
+      setIsCustomValidity(true);
+      setValidityDays(customDaysValue);
+    } else {
+      setIsCustomValidity(false);
+      setValidityDays(val);
+    }
+  };
+
+  const handleCustomDaysChange = (e) => {
+    const val = e.target.value;
+    setCustomDaysValue(val);
+    setValidityDays(val);
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-6">
@@ -28,7 +55,8 @@ export default function PortalView({
             Client Portal & License Manager
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            Register time-bound licenses with automated expiration tracking.
+            Register time-bound licenses with detailed client telemetry and
+            tracking.
           </p>
         </div>
       </div>
@@ -43,8 +71,8 @@ export default function PortalView({
 
           <form onSubmit={handleGenerateLicense} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                Client Name
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Client Contact Person
               </label>
               <input
                 type="text"
@@ -52,71 +80,129 @@ export default function PortalView({
                 placeholder="e.g. John Doe"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Company / Organization
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Acme Foundries"
+                placeholder="e.g. Ganga Forging LTD"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="client@domain.com"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="+91 98765..."
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Instance URL / Domain
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. erp.acme.com"
+                placeholder="erp.clientdomain.com"
                 value={instanceUrl}
                 onChange={(e) => setInstanceUrl(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                Subscription Plan
-              </label>
-              <select
-                value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
-              >
-                <option value="Starter">Starter (Up to 5 Users)</option>
-                <option value="Professional">
-                  Professional (Up to 25 Users)
-                </option>
-                <option value="Enterprise">Enterprise (Unlimited Users)</option>
-              </select>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Plan Tier
+                </label>
+                <select
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                >
+                  <option value="Starter">Starter</option>
+                  <option value="Professional">Professional</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Max Users
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={maxUsers}
+                  onChange={(e) => setMaxUsers(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 font-bold text-indigo-600"
+                />
+              </div>
             </div>
+
+            {/* VALIDITY DURATION & CUSTOM DAYS INPUT */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Validity Duration
               </label>
               <select
-                value={validityDays}
-                onChange={(e) => setValidityDays(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-600 font-bold text-indigo-600"
+                value={isCustomValidity ? "custom" : validityDays}
+                onChange={handleValidityChange}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600 font-bold text-indigo-600"
               >
                 <option value="7">7 Days (Trial)</option>
                 <option value="30">30 Days (Monthly)</option>
                 <option value="90">90 Days (Quarterly)</option>
                 <option value="365">365 Days (Annual)</option>
+                <option value="custom">Custom Number of Days...</option>
               </select>
+
+              {isCustomValidity && (
+                <div className="mt-2.5">
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Enter custom days (e.g. 45)"
+                    value={customDaysValue}
+                    onChange={handleCustomDaysChange}
+                    className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-indigo-900 font-bold focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20 mt-2 flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20 mt-2 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <Lock className="w-4 h-4" />
               <span>
@@ -136,7 +222,7 @@ export default function PortalView({
                 </code>
                 <button
                   onClick={() => copyToClipboard(generatedLicense)}
-                  className="text-slate-500 hover:text-slate-900 p-1"
+                  className="text-slate-500 hover:text-slate-900 p-1 cursor-pointer"
                 >
                   {copiedKey ? (
                     <Check className="w-4 h-4 text-emerald-600" />
@@ -149,21 +235,19 @@ export default function PortalView({
           )}
         </div>
 
-        {/* Telemetry & Expiry Status Table */}
+        {/* Telemetry Table */}
         <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center space-x-2 text-slate-900">
-              <Activity className="w-5 h-5 text-indigo-600" />
-              <span>Instance Status & Expiration Tracking</span>
-            </h2>
-          </div>
+          <h2 className="text-xl font-bold flex items-center space-x-2 text-slate-900">
+            <Activity className="w-5 h-5 text-indigo-600" />
+            <span>Registered Instances & Client Directory</span>
+          </h2>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 text-xs font-semibold uppercase text-slate-500">
-                  <th className="py-3 px-4">Client / Domain</th>
-                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Client / Contact</th>
+                  <th className="py-3 px-4">Status / Users</th>
                   <th className="py-3 px-4">Expires At</th>
                   <th className="py-3 px-4">License Key</th>
                 </tr>
@@ -180,21 +264,20 @@ export default function PortalView({
                         <div className="font-semibold text-slate-900">
                           {inst.client}
                         </div>
-                        <div className="text-xs text-slate-500 flex items-center space-x-1">
-                          <Globe className="w-3 h-3" />
-                          <span>{inst.domain}</span>
+                        <div className="text-xs text-slate-500">
+                          {inst.clientPerson} •{" "}
+                          {inst.clientEmail || inst.clientPhone || inst.domain}
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            isExpired
-                              ? "bg-rose-50 text-rose-700 border border-rose-200"
-                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${isExpired ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}
                         >
                           {inst.status}
                         </span>
+                        <div className="text-xs text-slate-400 mt-1">
+                          Users: {inst.maxUsers || "10"}
+                        </div>
                       </td>
                       <td className="py-4 px-4 font-mono text-xs text-slate-700">
                         {inst.expiresAt
@@ -205,7 +288,6 @@ export default function PortalView({
                         <button
                           onClick={() => onSelectInstance(inst)}
                           className="text-indigo-600 font-bold hover:underline cursor-pointer bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100"
-                          title="Click to view pre-generated integration code"
                         >
                           {inst.license} ↗
                         </button>

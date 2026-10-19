@@ -8,6 +8,7 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
+  deleteDoc,
 } from "firebase/firestore";
 
 const COLLECTION_NAME = "erp_instances";
@@ -19,7 +20,6 @@ export async function registerInstance(clientData) {
   try {
     const randomKey = `ERP-KEY-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    // Calculate expiration date based on selected validity days (default 30 days)
     const validityDays = parseInt(clientData.validityDays || 30);
     const createdAt = new Date();
     const expiresAt = new Date(
@@ -29,6 +29,9 @@ export async function registerInstance(clientData) {
     const payload = {
       client: clientData.companyName,
       clientPerson: clientData.clientName,
+      clientEmail: clientData.clientEmail || "",
+      clientPhone: clientData.clientPhone || "",
+      maxUsers: parseInt(clientData.maxUsers || 10),
       domain: clientData.instanceUrl,
       plan: clientData.selectedPlan,
       validityDays: validityDays,
@@ -38,7 +41,7 @@ export async function registerInstance(clientData) {
       dbSize: "120 MB",
       license: randomKey,
       createdAt: createdAt.toISOString(),
-      expiresAt: expiresAt.toISOString(), // Storing expiration time
+      expiresAt: expiresAt.toISOString(),
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), payload);
@@ -48,7 +51,6 @@ export async function registerInstance(clientData) {
     return { success: false, error: error.message };
   }
 }
-
 /**
  * 2. Fetch all registered ERP instances for the dashboard telemetry table
  */
@@ -98,5 +100,18 @@ export async function verifyLicenseKey(licenseKey) {
   } catch (error) {
     console.error("Error verifying license:", error);
     return { valid: false, error: error.message };
+  }
+}
+
+/**
+ * Delete an ERP instance permanently from Firestore by its document ID
+ */
+export async function deleteInstance(docId) {
+  try {
+    await deleteDoc(doc(db, COLLECTION_NAME, docId));
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting instance:", error);
+    return { success: false, error: error.message };
   }
 }

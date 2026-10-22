@@ -14,6 +14,11 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
+  Server,
+  HardDrive,
+  Cpu,
+  Database,
+  Layers,
 } from "lucide-react";
 import { deleteInstance, updateInstance } from "../services/erpApi";
 
@@ -39,7 +44,40 @@ export default function InstanceDetailView({
   const [revokeConfirmText, setRevokeConfirmText] = useState("");
   const [revoking, setRevoking] = useState(false);
 
+  // Safely extract telemetry and metrics data sources
+  const telemetry = instance.telemetry || {};
+  const metrics = instance.metrics || {};
+
+  // Telemetry Health Status Check (Active if pinged within last 10 mins)
+  const lastPingTime = instance.lastTelemetryPing
+    ? instance.lastTelemetryPing.toDate
+      ? instance.lastTelemetryPing.toDate()
+      : new Date(instance.lastTelemetryPing)
+    : instance.lastHeartbeat
+      ? instance.lastHeartbeat.toDate
+        ? instance.lastHeartbeat.toDate()
+        : new Date(instance.lastHeartbeat)
+      : telemetry.receivedAt
+        ? telemetry.receivedAt.toDate
+          ? telemetry.receivedAt.toDate()
+          : new Date(telemetry.receivedAt)
+        : null;
+
+  const isRecentlyActive =
+    lastPingTime && Date.now() - lastPingTime.getTime() < 600000;
+
+  const effectiveStatus = telemetry.status || "Offline";
+  const isOnline =
+    (effectiveStatus.toLowerCase() === "online" ||
+      effectiveStatus.toLowerCase() === "active") &&
+    isRecentlyActive;
+
+  const clientNameSnake = instance.client.toLowerCase().replace(/\s+/g, "_");
+
   const customPythonScript = `
+# ==========================================
+# 1. ERPNEXT LICENSE PROTECTION SCRIPT
+# ==========================================
 # Frappe Server Script / Whitelisted Method for ${instance.client} (${instance.domain})
 # Zero-Trust Secure Verification via Cloud Function
 # License Key: ${instance.license}
@@ -83,7 +121,6 @@ def verify_client_license():
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Add a state for the custom expiry date picker (default to today + 30 days formatted as YYYY-MM-DD)
   const [customExpiryDate, setCustomExpiryDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
@@ -97,10 +134,8 @@ def verify_client_license():
     }
 
     setRenewing(true);
-
-    // Convert selected date string to ISO datetime
     const newExpDate = new Date(customExpiryDate);
-    newExpDate.setHours(23, 59, 59, 999); // Set to end of the selected day
+    newExpDate.setHours(23, 59, 59, 999);
 
     const historyEntry = {
       renewedAt: new Date().toISOString(),
@@ -139,16 +174,15 @@ def verify_client_license():
       alert("An error occurred while renewing the license.");
     }
   };
+
   const handleToggleHoldStatus = async () => {
     setRenewing(true);
     const isCurrentlyOnHold = instance.status === "On Hold";
-
     const newExpDate = isCurrentlyOnHold
-      ? new Date(instance.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000) // Restore previous or add 30 days
-      : new Date(Date.now() - 24 * 60 * 60 * 1000); // Lock it
+      ? new Date(instance.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const newStatus = isCurrentlyOnHold ? "Active" : "On Hold";
-
     const payload = {
       expiresAt: newExpDate.toISOString(),
       status: newStatus,
@@ -193,7 +227,6 @@ def verify_client_license():
     if (revokeConfirmText !== instance.client) return;
     setRevoking(true);
 
-    // Set expiration to yesterday to instantly force an expiration lock
     const expiredDate = new Date();
     expiredDate.setDate(expiredDate.getDate() - 1);
 
@@ -322,6 +355,136 @@ def verify_client_license():
         </div>
       </div>
 
+      {/* SERVER HEALTH & TELEMETRY MONITORING CARD */}
+      <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xs space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center space-x-2">
+              <Server className="w-5 h-5 text-indigo-600" />
+              <span>On-Premise Server Health & Telemetry Metrics</span>
+            </h3>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Live metrics reported via automated background scheduler hook.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-semibold">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`}
+              ></span>
+              <span
+                className={
+                  isOnline
+                    ? "text-emerald-700 font-bold"
+                    : "text-rose-700 font-bold"
+                }
+              >
+                {isOnline ? "ERP Online" : "ERP Offline / Unreachable"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Info Bar (Database & ERPNext Version) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+          <div className="flex items-center space-x-3 bg-indigo-50/50 border border-indigo-100 p-3.5 rounded-2xl">
+            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">
+                Database Status
+              </span>
+              <span className="text-sm font-bold text-slate-900 capitalize">
+                {telemetry.databaseStatus ||
+                  metrics.databaseStatus ||
+                  "Unknown"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3 bg-indigo-50/50 border border-indigo-100 p-3.5 rounded-2xl">
+            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">
+                ERPNext Version
+              </span>
+              <span className="text-sm font-bold text-slate-900">
+                {telemetry.erpnextVersion || metrics.erpnextVersion || "N/A"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Resource Utilization Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <HardDrive className="w-4 h-4 text-indigo-600" />
+              <span>SSD Storage Used</span>
+            </span>
+            <div className="text-xl font-black text-slate-900">
+              {telemetry.diskUsagePercent !== undefined
+                ? `${telemetry.diskUsagePercent}%`
+                : metrics.diskUsagePercent !== undefined
+                  ? `${metrics.diskUsagePercent}%`
+                  : "No Data Yet"}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {telemetry.diskUsagePercent !== undefined
+                ? "Root filesystem utilization"
+                : metrics.diskFreeTb !== undefined
+                  ? `${metrics.diskFreeTb} TB free of ${metrics.diskTotalTb} TB`
+                  : "Waiting for telemetry hook..."}
+            </p>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <Cpu className="w-4 h-4 text-indigo-600" />
+              <span>RAM (Memory) Usage</span>
+            </span>
+            <div className="text-xl font-black text-slate-900">
+              {telemetry.ramUsagePercent !== undefined
+                ? `${telemetry.ramUsagePercent}%`
+                : metrics.ramUsagePercent !== undefined
+                  ? `${metrics.ramUsagePercent}%`
+                  : "No Data Yet"}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {telemetry.ramUsagePercent !== undefined
+                ? "Active system memory load"
+                : metrics.ramUsedGb !== undefined
+                  ? `${metrics.ramUsedGb} GB used of ${metrics.ramTotalGb} GB`
+                  : "Waiting for telemetry hook..."}
+            </p>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <Cpu className="w-4 h-4 text-indigo-600" />
+              <span>CPU Load</span>
+            </span>
+            <div className="text-xl font-black text-slate-900">
+              {telemetry.cpuUsagePercent !== undefined
+                ? `${telemetry.cpuUsagePercent}%`
+                : metrics.cpuUsagePercent !== undefined
+                  ? `${metrics.cpuUsagePercent}%`
+                  : "No Data Yet"}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Last ping:{" "}
+              {lastPingTime
+                ? lastPingTime.toLocaleTimeString("en-IN")
+                : "Never"}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* SUBSCRIPTION RENEWAL & STATUS MANAGEMENT CARD */}
       <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xs space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -338,7 +501,6 @@ def verify_client_license():
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {/* 1. REVOKE BUTTON: Shown only when Active */}
             {!isExpired && (
               <button
                 onClick={() => {
@@ -351,15 +513,6 @@ def verify_client_license():
               </button>
             )}
 
-            {/* 2. PUT ON HOLD / ACTIVATE TOGGLE */}
-            {/* If expired/revoked, we HIDE the activate option UNLESS it was placed on hold. 
-                To distinguish between "Revoked/Expired" vs "On Hold", we check if status is specifically "Expired / Deactivated" due to a manual revoke vs standard expiry, 
-                or we can show "Activate" ONLY when it's placed on hold. */}
-
-            {/* If it's on hold / expired, show Activate ONLY if you want them to be able to un-hold it. 
-                If you want to hide Activate entirely upon revocation, you can check a custom status flag or keep Activate visible only for "On Hold". */}
-
-            {/* Let's show "Put on Hold" when Active, and "Activate" ONLY when placed on hold (not fully revoked/expired via date) */}
             {!isExpired ? (
               <button
                 onClick={handleToggleHoldStatus}
@@ -378,7 +531,6 @@ def verify_client_license():
               </button>
             ) : null}
 
-            {/* 3. RENEW OPTIONS: Shown when expired or revoked */}
             {isExpired && (
               <>
                 <div className="flex items-center space-x-2">
@@ -405,7 +557,7 @@ def verify_client_license():
           </div>
         </div>
 
-        {/* Renewal History Table (Always shown to track past audits) */}
+        {/* Renewal History Table */}
         <div className="border-t border-slate-100 pt-6 space-y-3">
           <h4 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
             <Clock className="w-4 h-4 text-slate-500" />
@@ -491,10 +643,7 @@ def verify_client_license():
           <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
             <span className="text-xs font-mono text-indigo-400 flex items-center space-x-2">
               <Terminal className="w-4 h-4" />
-              <span>
-                verify_license_
-                {instance.client.toLowerCase().replace(/\s+/g, "_")}.py
-              </span>
+              <span>verify_license_{clientNameSnake}.py</span>
             </span>
             <button
               onClick={() => copyToClipboard(customPythonScript)}
@@ -505,7 +654,7 @@ def verify_client_license():
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
-              <span>{copied ? "Copied Custom Code!" : "Copy Snippet"}</span>
+              <span>{copied ? "Copied Snippet!" : "Copy Snippet"}</span>
             </button>
           </div>
           <pre className="p-6 text-xs font-mono text-slate-800 bg-slate-50 overflow-x-auto leading-relaxed">

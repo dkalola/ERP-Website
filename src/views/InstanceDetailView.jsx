@@ -82,37 +82,26 @@ export default function InstanceDetailView({
 # Zero-Trust Secure Verification via Cloud Function
 # License Key: ${instance.license}
 
-import frappe
-import requests
-from frappe.utils import now_datetime, get_datetime
 
-@frappe.whitelist()
-def verify_client_license():
-    assigned_key = "${instance.license}"
-    current_key = frappe.db.get_single_value("System Settings", "custom_erp_license_key")
-    if current_key != assigned_key:
-        frappe.throw("SECURITY LOCK: Invalid or unauthorized license key configured for this instance.")
-        
-    verify_url = "https://us-central1-erp-master-565f8.cloudfunctions.net/verifyLicense"
-    payload = {"license": assigned_key}
-    
-    try:
-        response = requests.post(verify_url, json=payload, timeout=5)
-        res_data = response.json()
-        
-        if response.status_code != 200 or not res_data.get("valid"):
-            error_msg = res_data.get("message", "License validation failed.")
-            frappe.throw(f"LICENSE ERROR: {error_msg}. System locked.")
-            
-        expires_at_str = res_data.get("expiresAt")
-        if expires_at_str and get_datetime(expires_at_str) < now_datetime():
-            frappe.throw("LICENSE EXPIRED: Your subscription for ${instance.client} has expired. System locked.")
-    except Exception as e:
-        if "LICENSE" in str(e) or "SECURITY" in str(e):
-            raise e
-        frappe.log_error(f"License verification failed: {str(e)}", "Nexus ERP License Error")
-        
-    return {"status": "Active", "client": "${instance.client}"}
+url = "https://us-central1-erp-master-565f8.cloudfunctions.net/updateTelemetry"
+
+payload = {
+    "licenseKey": "${instance.license}",
+    "timestamp": str(frappe.utils.now_datetime()),
+    "metrics": {
+        "status": "active",
+        "databaseStatus": "connected",
+        "erpnextVersion": "15.0.0"
+    }
+}
+
+try:
+    response = frappe.make_post_request(url, json=payload)
+    frappe.response["message"] = {"status": "success", "response": response}
+
+except Exception as e:
+    frappe.log_error(title="Telemetry Error", message=str(e))
+    frappe.response["message"] = {"status": "error", "message": str(e)}
   `.trim();
 
   const copyToClipboard = (text) => {

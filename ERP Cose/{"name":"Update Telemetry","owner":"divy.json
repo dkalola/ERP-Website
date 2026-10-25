@@ -1,0 +1,20 @@
+{
+  "name": "Update Telemetry",
+  "owner": "divyanshukalola88@gmail.com",
+  "creation": "2026-10-20 17:01:15.157557",
+  "modified": "2026-10-23 21:02:07.375072",
+  "modified_by": "divyanshukalola88@gmail.com",
+  "docstatus": 0,
+  "idx": 0,
+  "script_type": "Scheduler Event",
+  "event_frequency": "Cron",
+  "cron_format": "0 8 * * *",
+  "doctype_event": "Before Insert",
+  "allow_guest": 0,
+  "disabled": 0,
+  "script": "url = \"https://us-central1-erp-master-565f8.cloudfunctions.net/updateTelemetry\"\n\npayload = {\n    \"licenseKey\": \"ERP-KEY-2858-8XSL\",\n    \"timestamp\": str(frappe.utils.now_datetime()),\n    \"metrics\": {\n        \"status\": \"active\",\n        \"databaseStatus\": \"connected\",\n        \"erpnextVersion\": \"15.0.0\"\n    }\n}\n\ntry:\n    response = frappe.make_post_request(url, json=payload)\n    frappe.response[\"message\"] = {\"status\": \"success\", \"response\": response}\n\nexcept Exception as e:\n    frappe.log_error(title=\"Telemetry Error\", message=str(e))\n    frappe.response[\"message\"] = {\"status\": \"error\", \"message\": str(e)}",
+  "enable_rate_limit": 0,
+  "rate_limit_count": 5,
+  "rate_limit_seconds": 86400,
+  "doctype": "Server Script"
+}

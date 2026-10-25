@@ -1,5 +1,9 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const busboy = require("busboy");
+const path = require("path");
+const os = require("os");
+const fs = require("fs");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -182,3 +186,93 @@ exports.updateTelemetry = onRequest(async (req, res) => {
     });
   }
 });
+
+exports.uploadBackup = onRequest(
+  { timeoutSeconds: 300, memory: "1GB" },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      return res
+        .status(405)
+        .json({ success: false, error: "Method Not Allowed" });
+    }
+
+    const bb = busboy({ headers: req.headers });
+    let licenseKey = "";
+    let fileHash = "";
+    let uploadPath = "";
+    let uploadDetails = {};
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      bb.on("field", (fieldname, val) => {
+        if (fieldname === "licenseKey") licenseKey = val;
+        if (fieldname === "fileHash") fileHash = val;
+      });
+
+      bb.on("file", (fieldname, file, info) => {
+        const { filename, mimeType } = info;
+        const saveTo = path.join(os.tmpdir(), filename);
+        uploadPath = saveTo;
+        uploadDetails = { filename, mimeType };
+
+        const writeStream = fs.createWriteStream(saveTo);
+        file.pipe(writeStream);
+      });
+
+      bb.on("finish", async () => {
+        try {
+          if (!licenseKey) {
+            return reject(new Error("Missing licenseKey"));
+          }
+          if (!uploadPath || !fs.existsSync(uploadPath)) {
+            return reject(new Error("No file uploaded"));
+          }
+
+          const bucket = admin.storage().bucket();
+          const destination = `${licenseKey}/${uploadDetails.filename}`;
+
+          await bucket.upload(uploadPath, {
+            destination: destination,
+            metadata: {
+              contentType: uploadDetails.mimeType || "application/octet-stream",
+              metadata: { fileHash: fileHash },
+            },
+          });
+
+          if (fs.existsSync(uploadPath)) {
+            fs.unlinkSync(uploadPath);
+          }
+          resolve(destination);
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      bb.on("error", (err) => {
+        reject(err);
+      });
+
+      if (req.rawBody) {
+        bb.end(req.rawBody);
+      } else {
+        req.pipe(bb);
+      }
+    });
+
+    try {
+      const destination = await uploadPromise;
+      return res.status(200).json({ success: true, destination });
+    } catch (error) {
+      console.error("Upload error:", error);
+      if (uploadPath && fs.existsSync(uploadPath)) {
+        try {
+          fs.unlinkSync(uploadPath);
+        } catch (e) {}
+      }
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        stack: error.stack,
+      });
+    }
+  },
+);

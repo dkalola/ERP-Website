@@ -31,6 +31,8 @@ Set Config Variables frontend
 
 # telemetry.py
 
+#### path: apps/system_monitor/system_monitor/telemetry.py
+
 code:
 
 ```
@@ -110,6 +112,8 @@ def send_system_telemetry():
 ```
 
 # backup.py
+
+#### path: apps/system_monitor/system_monitor/backup.py
 
 code:
 
@@ -245,3 +249,20 @@ def get_file_hash(file_path):
 Note:
 
 - This code will check the frontend site config file.
+
+# hooks.py
+
+#### path: apps/system_monitor/system_monitor/hooks.py
+
+add this code to the file:
+
+```
+scheduler_events = {
+    "daily": [
+        "server.telemetry.send_system_telemetry",
+        "server.backup.trigger_backup_process"
+    ]
+}
+```
+
+(Note: If you want the backup check to run more frequently—such as every hour to catch triggers faster—you can move trigger_backup_process to "hourly" instead of "daily").

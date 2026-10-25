@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Terminal,
@@ -19,8 +19,11 @@ import {
   Cpu,
   Database,
   Layers,
+  CloudUpload,
 } from "lucide-react";
 import { deleteInstance, updateInstance } from "../services/erpApi";
+import { storage } from "../firebase";
+import { ref, listAll, getDownloadURL, getMetadata } from "firebase/storage";
 
 export default function InstanceDetailView({
   instance,
@@ -34,6 +37,11 @@ export default function InstanceDetailView({
   const [renewalMonths, setRenewalMonths] = useState(1);
   const [renewing, setRenewing] = useState(false);
 
+  // Backup Trigger & Direct Storage States
+  const [triggeringBackup, setTriggeringBackup] = useState(false);
+  const [backups, setBackups] = useState([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+
   // Delete 2FA Confirmation State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -43,6 +51,47 @@ export default function InstanceDetailView({
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revokeConfirmText, setRevokeConfirmText] = useState("");
   const [revoking, setRevoking] = useState(false);
+
+  // Fetch backups directly from Firebase Storage on load or license change
+  useEffect(() => {
+    if (instance?.license) {
+      loadBackupsDirectly();
+    }
+  }, [instance?.license]);
+
+  const loadBackupsDirectly = async () => {
+    setLoadingBackups(true);
+    try {
+      const folderRef = ref(storage, `${instance.license}/`);
+      const res = await listAll(folderRef);
+
+      const backupList = await Promise.all(
+        res.items.map(async (itemRef) => {
+          const downloadUrl = await getDownloadURL(itemRef);
+          const metadata = await getMetadata(itemRef);
+
+          return {
+            name: itemRef.name,
+            size: metadata.size,
+            updated: metadata.timeCreated,
+            downloadUrl: downloadUrl,
+            fileHash:
+              metadata.customMetadata?.filehash ||
+              metadata.customMetadata?.fileHash ||
+              "N/A",
+          };
+        }),
+      );
+
+      backupList.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+      setBackups(backupList);
+    } catch (error) {
+      console.error("Failed to load backups directly from storage:", error);
+      setBackups([]);
+    } finally {
+      setLoadingBackups(false);
+    }
+  };
 
   // Safely extract telemetry and metrics data sources
   const telemetry = instance.telemetry || {};
@@ -76,7 +125,7 @@ export default function InstanceDetailView({
 
   const customPythonScript = `
 # ==========================================
-# 1. ERPNEXT LICENSE PROTECTION SCRIPT
+# 1. ERPNEXT LICENSE & TELEMETRY PROTECTION SCRIPT
 # ==========================================
 # Frappe Server Script / Whitelisted Method for ${instance.client} (${instance.domain})
 # Zero-Trust Secure Verification via Cloud Function
@@ -161,6 +210,31 @@ except Exception as e:
       setRenewing(false);
       console.error("Renewal error:", err);
       alert("An error occurred while renewing the license.");
+    }
+  };
+
+  const handleTriggerBackup = async () => {
+    setTriggeringBackup(true);
+    const payload = {
+      trigger_backup: 1,
+    };
+
+    try {
+      const res = await updateInstance(instance.id, payload);
+      setTriggeringBackup(false);
+      if (res.success) {
+        instance.trigger_backup = 1;
+        if (onInstanceUpdated) onInstanceUpdated(instance);
+        alert(
+          "Backup requested successfully! The ERP instance will pick up this flag on its next scheduled check and upload the backup archive.",
+        );
+      } else {
+        alert("Failed to queue backup request.");
+      }
+    } catch (err) {
+      setTriggeringBackup(false);
+      console.error("Backup trigger error:", err);
+      alert("An error occurred while requesting the backup.");
     }
   };
 
@@ -423,11 +497,7 @@ except Exception as e:
                   : "No Data Yet"}
             </div>
             <p className="text-[11px] text-slate-500">
-              {telemetry.diskUsagePercent !== undefined
-                ? "Root filesystem utilization"
-                : metrics.diskFreeTb !== undefined
-                  ? `${metrics.diskFreeTb} TB free of ${metrics.diskTotalTb} TB`
-                  : "Waiting for telemetry hook..."}
+              Root filesystem utilization
             </p>
           </div>
 
@@ -444,11 +514,7 @@ except Exception as e:
                   : "No Data Yet"}
             </div>
             <p className="text-[11px] text-slate-500">
-              {telemetry.ramUsagePercent !== undefined
-                ? "Active system memory load"
-                : metrics.ramUsedGb !== undefined
-                  ? `${metrics.ramUsedGb} GB used of ${metrics.ramTotalGb} GB`
-                  : "Waiting for telemetry hook..."}
+              Active system memory load
             </p>
           </div>
 
@@ -471,6 +537,117 @@ except Exception as e:
                 : "Never"}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* CLOUD STORAGE BACKUPS & RESTORE MANAGEMENT CARD */}
+      <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xs space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center space-x-2">
+              <CloudUpload className="w-5 h-5 text-indigo-600" />
+              <span>Cloud Storage Backups</span>
+            </h3>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Fetched directly from{" "}
+              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">
+                gs://erp-master-565f8.firebasestorage.app/{instance.license}
+              </code>
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadBackupsDirectly}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center space-x-1.5"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loadingBackups ? "animate-spin" : ""}`}
+              />
+              <span>Refresh List</span>
+            </button>
+
+            <button
+              onClick={handleTriggerBackup}
+              disabled={triggeringBackup}
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/20 cursor-pointer flex items-center space-x-2"
+            >
+              <CloudUpload className="w-4 h-4" />
+              <span>
+                {triggeringBackup ? "Requesting..." : "Request Instant Backup"}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Backups Table */}
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3">Filename</th>
+                <th className="px-4 py-3">Size</th>
+                <th className="px-4 py-3">Uploaded Timestamp</th>
+                <th className="px-4 py-3">SHA-256 Hash</th>
+                <th className="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {loadingBackups ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-4 py-8 text-center text-slate-400 italic"
+                  >
+                    Loading backups from Firebase Storage...
+                  </td>
+                </tr>
+              ) : backups.length > 0 ? (
+                backups.map((file, index) => (
+                  <tr
+                    key={index}
+                    className="hover:bg-slate-50/50 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900">
+                      {file.name}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {new Date(file.updated).toLocaleString("en-IN")}
+                    </td>
+                    <td
+                      className="px-4 py-3 font-mono text-slate-500 truncate max-w-[150px]"
+                      title={file.fileHash}
+                    >
+                      {file.fileHash}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <a
+                        href={file.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition-colors inline-flex items-center space-x-1"
+                      >
+                        <span>Download Backup</span>
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-4 py-8 text-center text-slate-400 italic"
+                  >
+                    No backup files found in Firebase storage for this license
+                    key.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

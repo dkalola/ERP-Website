@@ -191,3 +191,16 @@ export async function fetchDemoRequests() {
     return { success: false, error: error.message, requests: [] };
   }
 }
+
+export async function fetchInstanceBackups(licenseKey) {
+  try {
+    const response = await fetch(
+      `https://us-central1-erp-master-565f8.cloudfunctions.net/listBackups?licenseKey=${encodeURIComponent(licenseKey)}`,
+    );
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch backups:", error);
+    return { success: false, backups: [] };
+  }
+}

@@ -41,7 +41,7 @@ def send_system_telemetry():
             database_status = "Database Error"
 
         # Fetch license key from site config (or replace with your actual key/logic)
-        license_key ="ERP-KEY-2858-8XSL"
+        license_key = frappe.conf.get("license_key")
 
         payload = {
             "licenseKey": license_key,
